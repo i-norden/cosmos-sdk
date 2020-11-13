@@ -130,6 +130,18 @@ type MultiStore interface {
 	// implied that the caller should update the context when necessary between
 	// tracing operations. The modified MultiStore is returned.
 	SetTracingContext(TraceContext) MultiStore
+
+	// ListeningEnabled returns if listening is enabled for the KVStore belonging the provided StoreKey
+	ListeningEnabled(key StoreKey) bool
+
+	// SetTracer sets the listener for the KVStore belonging to the provided StoreKey
+	SetListener(key StoreKey, w io.Writer)
+
+	// SetListeningContext sets the listening trace context for the KVStore belong to the provided StoreKey
+	SetListeningContext(key StoreKey, tc TraceContext)
+
+	// CacheListening enables or disables KVStore listening at the cache layer
+	CacheListening(listen bool)
 }
 
 // From MultiStore.CacheMultiStore()....
@@ -396,6 +408,12 @@ type KVPair kv.Pair
 // TraceContext contains TraceKVStore context data. It will be written with
 // every trace operation.
 type TraceContext map[string]interface{}
+
+// ContextWriter wraps TraceContext with a io.Writer
+type ContextWriter struct {
+	Writer  io.Writer
+	Context TraceContext
+}
 
 // MultiStorePersistentCache defines an interface which provides inter-block
 // (persistent) caching capabilities for multiple CommitKVStores based on StoreKeys.

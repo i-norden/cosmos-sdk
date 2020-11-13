@@ -25,6 +25,9 @@ type Store struct {
 
 	traceWriter  io.Writer
 	traceContext types.TraceContext
+
+	listeners      map[types.StoreKey]types.ContextWriter
+	cacheListening bool
 }
 
 var _ types.CacheMultiStore = Store{}
@@ -35,6 +38,7 @@ var _ types.CacheMultiStore = Store{}
 func NewFromKVStore(
 	store types.KVStore, stores map[types.StoreKey]types.CacheWrapper,
 	keys map[string]types.StoreKey, traceWriter io.Writer, traceContext types.TraceContext,
+	listeners map[types.StoreKey]types.ContextWriter,
 ) Store {
 	cms := Store{
 		db:           cachekv.NewStore(store),
@@ -42,14 +46,21 @@ func NewFromKVStore(
 		keys:         keys,
 		traceWriter:  traceWriter,
 		traceContext: traceContext,
+		listeners:    listeners,
 	}
 
 	for key, store := range stores {
+		var cacheWrapped types.CacheWrap
+		// is it safe to cache wrap a cache wrap?
 		if cms.TracingEnabled() {
-			cms.stores[key] = store.CacheWrapWithTrace(cms.traceWriter, cms.traceContext)
+			cacheWrapped = store.CacheWrapWithTrace(cms.traceWriter, cms.traceContext)
 		} else {
-			cms.stores[key] = store.CacheWrap()
+			cacheWrapped = store.CacheWrap()
 		}
+		if cms.ListeningEnabled(key) {
+			cacheWrapped = cacheWrapped.CacheWrapWithTrace(cms.listeners[key].Writer, cms.listeners[key].Context)
+		}
+		cms.stores[key] = cacheWrapped
 	}
 
 	return cms
@@ -59,10 +70,10 @@ func NewFromKVStore(
 // CacheWrapper objects. Each CacheWrapper store is a branched store.
 func NewStore(
 	db dbm.DB, stores map[types.StoreKey]types.CacheWrapper, keys map[string]types.StoreKey,
-	traceWriter io.Writer, traceContext types.TraceContext,
+	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey]types.ContextWriter,
 ) Store {
 
-	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext)
+	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext, listeners)
 }
 
 func newCacheMultiStoreFromCMS(cms Store) Store {
@@ -70,8 +81,12 @@ func newCacheMultiStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
+	var cacheListeners map[types.StoreKey]types.ContextWriter
+	if cms.cacheListening {
+		cacheListeners = cms.listeners
+	}
 
-	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext)
+	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext, cacheListeners)
 }
 
 // SetTracer sets the tracer for the MultiStore that the underlying
@@ -100,6 +115,46 @@ func (cms Store) SetTracingContext(tc types.TraceContext) types.MultiStore {
 // TracingEnabled returns if tracing is enabled for the MultiStore.
 func (cms Store) TracingEnabled() bool {
 	return cms.traceWriter != nil
+}
+
+// SetListener sets the listener for a specific KVStore
+func (cms Store) SetListener(key types.StoreKey, w io.Writer) {
+	if ls, ok := cms.listeners[key]; ok {
+		ls.Writer = w
+		cms.listeners[key] = ls
+	} else {
+		cms.listeners[key] = types.ContextWriter{Writer: w, Context: nil}
+	}
+}
+
+// SetListeningContext updates the listener's tracing context for a specific KVStore by merging
+//// the given context with the existing context by key. Any existing keys will be overwritten.
+func (cms Store) SetListeningContext(key types.StoreKey, tc types.TraceContext) {
+	if ls, ok := cms.listeners[key]; ok {
+		if ls.Context != nil {
+			for k, v := range tc {
+				ls.Context[k] = v
+			}
+		} else {
+			ls.Context = tc
+		}
+		cms.listeners[key] = ls
+	} else {
+		cms.listeners[key] = types.ContextWriter{Writer: nil, Context: tc}
+	}
+}
+
+// ListeningEnabled returns if listening is enabled for a specific KVStore
+func (cms Store) ListeningEnabled(key types.StoreKey) bool {
+	if ls, ok := cms.listeners[key]; ok {
+		return ls.Writer != nil
+	}
+	return false
+}
+
+// CacheListening turns on or off listening at the cache layer
+func (cms Store) CacheListening(listen bool) {
+	cms.cacheListening = listen
 }
 
 // GetStoreType returns the type of the store.

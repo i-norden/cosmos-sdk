@@ -57,6 +57,9 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
+	listeners      map[types.StoreKey]types.ContextWriter
+	cacheListening bool
+
 	interBlockCache types.MultiStorePersistentCache
 }
 
@@ -77,6 +80,7 @@ func NewStore(db dbm.DB) *Store {
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		keysByName:   make(map[string]types.StoreKey),
 		pruneHeights: make([]int64, 0),
+		listeners:    make(map[types.StoreKey]types.ContextWriter),
 	}
 }
 
@@ -312,6 +316,46 @@ func (rs *Store) TracingEnabled() bool {
 	return rs.traceWriter != nil
 }
 
+// SetListener sets the listener for a specific KVStore
+func (rs *Store) SetListener(key types.StoreKey, w io.Writer) {
+	if ls, ok := rs.listeners[key]; ok {
+		ls.Writer = w
+		rs.listeners[key] = ls
+	} else {
+		rs.listeners[key] = types.ContextWriter{Writer: w, Context: nil}
+	}
+}
+
+// SetListeningContext updates the listener's tracing context for a specific KVStore by merging
+//// the given context with the existing context by key. Any existing keys will be overwritten.
+func (rs *Store) SetListeningContext(key types.StoreKey, tc types.TraceContext) {
+	if ls, ok := rs.listeners[key]; ok {
+		if ls.Context != nil {
+			for k, v := range tc {
+				ls.Context[k] = v
+			}
+		} else {
+			ls.Context = tc
+		}
+		rs.listeners[key] = ls
+	} else {
+		rs.listeners[key] = types.ContextWriter{Writer: nil, Context: tc}
+	}
+}
+
+// ListeningEnabled returns if listening is enabled for a specific KVStore
+func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
+	if ls, ok := rs.listeners[key]; ok {
+		return ls.Writer != nil
+	}
+	return false
+}
+
+// CacheListening enables or disables KVStore listening at the cache layer
+func (rs *Store) CacheListening(listen bool) {
+	rs.cacheListening = listen
+}
+
 // LastCommitID implements Committer/CommitStore.
 func (rs *Store) LastCommitID() types.CommitID {
 	if rs.lastCommitInfo == nil {
@@ -411,8 +455,11 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	for k, v := range rs.stores {
 		stores[k] = v
 	}
-
-	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext)
+	var cacheListeners map[types.StoreKey]types.ContextWriter
+	if rs.cacheListening {
+		cacheListeners = rs.listeners
+	}
+	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext, cacheListeners)
 }
 
 // CacheMultiStoreWithVersion is analogous to CacheMultiStore except that it
@@ -441,8 +488,12 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 			cachedStores[key] = store
 		}
 	}
+	var cacheListeners map[types.StoreKey]types.ContextWriter
+	if rs.cacheListening {
+		cacheListeners = rs.listeners
+	}
 
-	return cachemulti.NewStore(rs.db, cachedStores, rs.keysByName, rs.traceWriter, rs.traceContext), nil
+	return cachemulti.NewStore(rs.db, cachedStores, rs.keysByName, rs.traceWriter, rs.traceContext, cacheListeners), nil
 }
 
 // GetStore returns a mounted Store for a given StoreKey. If the StoreKey does
@@ -471,6 +522,9 @@ func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 
 	if rs.TracingEnabled() {
 		store = tracekv.NewStore(store, rs.traceWriter, rs.traceContext)
+	}
+	if rs.ListeningEnabled(key) {
+		store = tracekv.NewStore(store, rs.listeners[key].Writer, rs.listeners[key].Context)
 	}
 
 	return store
