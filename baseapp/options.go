@@ -182,6 +182,11 @@ func (app *BaseApp) SetCommitMultiStoreTracer(w io.Writer) {
 	app.cms.SetTracer(w)
 }
 
+// SetCommitMultiStoreListener sets the KVStore listener for the provided StoreKey
+func (app *BaseApp) SetCommitMultiStoreListener(key sdk.StoreKey, l sdk.Listener) {
+	app.cms.SetListener(key, l)
+}
+
 // SetStoreLoader allows us to customize the rootMultiStore initialization.
 func (app *BaseApp) SetStoreLoader(loader StoreLoader) {
 	if app.sealed {
