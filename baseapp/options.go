@@ -9,6 +9,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/snapshots"
 	"github.com/cosmos/cosmos-sdk/store"
+	storeTypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -182,9 +183,14 @@ func (app *BaseApp) SetCommitMultiStoreTracer(w io.Writer) {
 	app.cms.SetTracer(w)
 }
 
-// SetCommitMultiStoreListener sets the KVStore listener for the provided StoreKey
-func (app *BaseApp) SetCommitMultiStoreListener(key sdk.StoreKey, l sdk.Listener) {
-	app.cms.SetListener(key, l)
+// SetCommitMultiStoreListeners sets the KVStore listeners for the provided StoreKey
+func (app *BaseApp) SetCommitMultiStoreListeners(key sdk.StoreKey, listeners []storeTypes.Listener) {
+	app.cms.SetListeners(key, listeners)
+}
+
+// SetCacheListening turns on or off listening at the cache layer
+func (app *BaseApp) SetCacheListening(listening bool) {
+	app.cms.CacheListening(listening)
 }
 
 // SetStoreLoader allows us to customize the rootMultiStore initialization.

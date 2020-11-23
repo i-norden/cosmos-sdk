@@ -9,15 +9,13 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-type (
-	// Store implements the KVStore interface with listening enabled.
-	// Operations are traced on each core KVStore call and written to any of the
-	// underlying io.writer for listeners with the proper key permissions
-	Store struct {
-		parent    types.KVStore
-		listeners []types.Listener
-	}
-)
+// Store implements the KVStore interface with listening enabled.
+// Operations are traced on each core KVStore call and written to any of the
+// underlying io.writer for listeners with the proper key permissions
+type Store struct {
+	parent    types.KVStore
+	listeners []types.Listener
+}
 
 // NewStore returns a reference to a new traceKVStore given a parent
 // KVStore implementation and a buffered writer.
@@ -164,7 +162,7 @@ func writeOperation(listeners []types.Listener, op types.Operation, key, value [
 		Value:     base64.StdEncoding.EncodeToString(value),
 	}
 	for _, l := range listeners {
-		if !l.Allowed(key) {
+		if !l.Allowed(op, key) {
 			continue
 		}
 		traceOp.Metadata = l.Context
