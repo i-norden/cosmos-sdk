@@ -26,7 +26,7 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
-	listeners      map[types.StoreKey]types.ContextWriter
+	listeners      map[types.StoreKey][]types.Listener
 	cacheListening bool
 }
 
@@ -38,7 +38,7 @@ var _ types.CacheMultiStore = Store{}
 func NewFromKVStore(
 	store types.KVStore, stores map[types.StoreKey]types.CacheWrapper,
 	keys map[string]types.StoreKey, traceWriter io.Writer, traceContext types.TraceContext,
-	listeners map[types.StoreKey]types.ContextWriter,
+	listeners map[types.StoreKey][]types.Listener,
 ) Store {
 	cms := Store{
 		db:           cachekv.NewStore(store),
@@ -58,7 +58,7 @@ func NewFromKVStore(
 			cacheWrapped = store.CacheWrap()
 		}
 		if cms.ListeningEnabled(key) {
-			cacheWrapped = cacheWrapped.CacheWrapWithTrace(cms.listeners[key].Writer, cms.listeners[key].Context)
+			cacheWrapped = cacheWrapped.CacheWrapWithListeners(cms.listeners[key])
 		}
 		cms.stores[key] = cacheWrapped
 	}
@@ -70,7 +70,7 @@ func NewFromKVStore(
 // CacheWrapper objects. Each CacheWrapper store is a branched store.
 func NewStore(
 	db dbm.DB, stores map[types.StoreKey]types.CacheWrapper, keys map[string]types.StoreKey,
-	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey]types.ContextWriter,
+	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.Listener,
 ) Store {
 
 	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext, listeners)
@@ -81,7 +81,7 @@ func newCacheMultiStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
-	var cacheListeners map[types.StoreKey]types.ContextWriter
+	var cacheListeners map[types.StoreKey][]types.Listener
 	if cms.cacheListening {
 		cacheListeners = cms.listeners
 	}
@@ -117,37 +117,19 @@ func (cms Store) TracingEnabled() bool {
 	return cms.traceWriter != nil
 }
 
-// SetListener sets the listener for a specific KVStore
-func (cms Store) SetListener(key types.StoreKey, w io.Writer) {
+// SetListeners sets the listeners for a specific KVStore
+func (cms Store) SetListeners(key types.StoreKey, listeners []types.Listener) {
 	if ls, ok := cms.listeners[key]; ok {
-		ls.Writer = w
-		cms.listeners[key] = ls
+		cms.listeners[key] = append(ls, listeners...)
 	} else {
-		cms.listeners[key] = types.ContextWriter{Writer: w, Context: nil}
-	}
-}
-
-// SetListeningContext updates the listener's tracing context for a specific KVStore by merging
-//// the given context with the existing context by key. Any existing keys will be overwritten.
-func (cms Store) SetListeningContext(key types.StoreKey, tc types.TraceContext) {
-	if ls, ok := cms.listeners[key]; ok {
-		if ls.Context != nil {
-			for k, v := range tc {
-				ls.Context[k] = v
-			}
-		} else {
-			ls.Context = tc
-		}
-		cms.listeners[key] = ls
-	} else {
-		cms.listeners[key] = types.ContextWriter{Writer: nil, Context: tc}
+		cms.listeners[key] = listeners
 	}
 }
 
 // ListeningEnabled returns if listening is enabled for a specific KVStore
 func (cms Store) ListeningEnabled(key types.StoreKey) bool {
 	if ls, ok := cms.listeners[key]; ok {
-		return ls.Writer != nil
+		return len(ls) != 0
 	}
 	return false
 }
@@ -177,6 +159,11 @@ func (cms Store) CacheWrap() types.CacheWrap {
 
 // CacheWrapWithTrace implements the CacheWrapper interface.
 func (cms Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.CacheWrap {
+	return cms.CacheWrap()
+}
+
+// CacheWrapWithListeners implements the CacheWrapper interface.
+func (cms Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
 	return cms.CacheWrap()
 }
 

@@ -154,6 +154,12 @@ func (tkv *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Ca
 	panic("cannot CacheWrapWithTrace a Store")
 }
 
+// CacheWrapWithListeners implements the KVStore interface. It panics as a
+// Store cannot be cache wrapped.
+func (tkv *Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
+	panic("cannot CacheWrapWithListeners a Store")
+}
+
 // writeOperation writes a KVStore operation to the underlying io.Writer as
 // JSON-encoded data where the key/value pair is base64 encoded.
 func writeOperation(w io.Writer, op types.Operation, tc types.TraceContext, key, value []byte) {

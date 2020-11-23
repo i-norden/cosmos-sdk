@@ -3,6 +3,8 @@ package mem
 import (
 	"io"
 
+	"github.com/cosmos/cosmos-sdk/store/listenkv"
+
 	dbm "github.com/tendermint/tm-db"
 
 	"github.com/cosmos/cosmos-sdk/store/cachekv"
@@ -43,6 +45,11 @@ func (s Store) CacheWrap() types.CacheWrap {
 // CacheWrapWithTrace implements KVStore.
 func (s Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.CacheWrap {
 	return cachekv.NewStore(tracekv.NewStore(s, w, tc))
+}
+
+// CacheWrapWithListeners implements KVStore.
+func (s Store) CacheWrapWithListeners(listeners []types.Listener) types.CacheWrap {
+	return cachekv.NewStore(listenkv.NewStore(s, listeners))
 }
 
 // Commit performs a no-op as entries are persistent between commitments.

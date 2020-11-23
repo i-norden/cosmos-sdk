@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-// operation represents an IO operation
+// Operation represents an IO operation
 type Operation string
 
 const (
@@ -24,7 +24,7 @@ type TraceOperation struct {
 	Metadata  map[string]interface{} `json:"metadata"`
 }
 
-// Listener struct used to configure listening to specific keys of a KVStore
+// Listener is used to configure listening on specific keys of a KVStore
 type Listener struct {
 	Writer              io.Writer
 	Context             TraceContext
@@ -35,26 +35,24 @@ type Listener struct {
 }
 
 // Allowed returns whether or not the Listener is allowed to listen to the provided key
-func (l Listener) Allowed(key []byte) bool {
-	// if there are no keys or prefixes in the whitelists then every key is allowed (unless explicity disallowed below)
+func (l *Listener) Allowed(key []byte) bool {
+	// if there are no keys or prefixes in the whitelists then every key is allowed (unless disallowed in blacklists)
+	// if there are whitelisted keys or prefixes then only the keys which conform are allowed (unless disallowed in blacklists)
 	allowed := true
-	if len(l.WhitelistedKeys) > 0 {
-		allowed = byteSliceContains(l.WhitelistedKeys, key, bytes.Equal)
+	if len(l.WhitelistedKeys) > 0 || len(l.WhitelistedPrefixes) > 0 {
+		allowed = listsContains(l.WhitelistedKeys, l.WhitelistedPrefixes, key)
 	}
-	if len(l.WhitelistedPrefixes) > 0 {
-		allowed = byteSliceContains(l.WhitelistedPrefixes, key, bytes.HasPrefix)
-	}
-	// only keys/prefixes in the blacklists are considered disallowed
-	disallowed := byteSliceContains(l.BlacklistedKeys, key, bytes.Equal)
-	disallowed = byteSliceContains(l.BlacklistedPrefixes, key, bytes.HasPrefix)
-	return allowed && !disallowed
+	return allowed && !listsContains(l.BlacklistedKeys, l.BlacklistedPrefixes, key)
 }
 
-// byteSliceContains returns whether or not the provided slice of byte slices contains an element that matches
-// the provided key according to the provided matching function
-func byteSliceContains(slice [][]byte, key []byte, doesMatch func(key, sliceElement []byte) bool) bool {
-	for _, el := range slice {
-		if doesMatch(key, el) {
+func listsContains(keys, prefixes [][]byte, key []byte) bool {
+	for _, k := range keys {
+		if bytes.Equal(key, k) {
+			return true
+		}
+	}
+	for _, p := range prefixes {
+		if bytes.HasPrefix(key, p) {
 			return true
 		}
 	}

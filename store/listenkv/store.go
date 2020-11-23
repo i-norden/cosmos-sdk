@@ -1,4 +1,4 @@
-package tracekv
+package listenkv
 
 import (
 	"encoding/base64"
@@ -147,6 +147,12 @@ func (tkv *Store) CacheWrap() types.CacheWrap {
 // Store cannot be cache wrapped.
 func (tkv *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.CacheWrap {
 	panic("cannot CacheWrapWithTrace a Store")
+}
+
+// CacheWrapWithListeners implements the KVStore interface. It panics as a
+// Store cannot be cache wrapped.
+func (tkv *Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
+	panic("cannot CacheWrapWithListeners a Store")
 }
 
 // writeOperation writes a KVStore operation to the underlying io.Writer as

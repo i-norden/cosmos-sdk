@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cosmos/cosmos-sdk/store/listenkv"
+
 	iavltree "github.com/cosmos/iavl"
 	protoio "github.com/gogo/protobuf/io"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -57,7 +59,7 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
-	listeners      map[types.StoreKey]types.ContextWriter
+	listeners      map[types.StoreKey][]types.Listener
 	cacheListening bool
 
 	interBlockCache types.MultiStorePersistentCache
@@ -80,7 +82,7 @@ func NewStore(db dbm.DB) *Store {
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		keysByName:   make(map[string]types.StoreKey),
 		pruneHeights: make([]int64, 0),
-		listeners:    make(map[types.StoreKey]types.ContextWriter),
+		listeners:    make(map[types.StoreKey][]types.Listener),
 	}
 }
 
@@ -316,37 +318,19 @@ func (rs *Store) TracingEnabled() bool {
 	return rs.traceWriter != nil
 }
 
-// SetListener sets the listener for a specific KVStore
-func (rs *Store) SetListener(key types.StoreKey, w io.Writer) {
+// SetListener sets the listeners for a specific KVStore
+func (rs *Store) SetListeners(key types.StoreKey, listeners []types.Listener) {
 	if ls, ok := rs.listeners[key]; ok {
-		ls.Writer = w
-		rs.listeners[key] = ls
+		rs.listeners[key] = append(ls, listeners...)
 	} else {
-		rs.listeners[key] = types.ContextWriter{Writer: w, Context: nil}
-	}
-}
-
-// SetListeningContext updates the listener's tracing context for a specific KVStore by merging
-//// the given context with the existing context by key. Any existing keys will be overwritten.
-func (rs *Store) SetListeningContext(key types.StoreKey, tc types.TraceContext) {
-	if ls, ok := rs.listeners[key]; ok {
-		if ls.Context != nil {
-			for k, v := range tc {
-				ls.Context[k] = v
-			}
-		} else {
-			ls.Context = tc
-		}
-		rs.listeners[key] = ls
-	} else {
-		rs.listeners[key] = types.ContextWriter{Writer: nil, Context: tc}
+		rs.listeners[key] = listeners
 	}
 }
 
 // ListeningEnabled returns if listening is enabled for a specific KVStore
 func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
 	if ls, ok := rs.listeners[key]; ok {
-		return ls.Writer != nil
+		return len(ls) != 0
 	}
 	return false
 }
@@ -448,6 +432,11 @@ func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 	return rs.CacheWrap()
 }
 
+// CacheWrapWithListeners implements the CacheWrapper interface.
+func (rs *Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
+	return rs.CacheWrap()
+}
+
 // CacheMultiStore creates ephemeral branch of the multi-store and returns a CacheMultiStore.
 // It implements the MultiStore interface.
 func (rs *Store) CacheMultiStore() types.CacheMultiStore {
@@ -455,7 +444,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	for k, v := range rs.stores {
 		stores[k] = v
 	}
-	var cacheListeners map[types.StoreKey]types.ContextWriter
+	var cacheListeners map[types.StoreKey][]types.Listener
 	if rs.cacheListening {
 		cacheListeners = rs.listeners
 	}
@@ -488,7 +477,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 			cachedStores[key] = store
 		}
 	}
-	var cacheListeners map[types.StoreKey]types.ContextWriter
+	var cacheListeners map[types.StoreKey][]types.Listener
 	if rs.cacheListening {
 		cacheListeners = rs.listeners
 	}
@@ -524,7 +513,7 @@ func (rs *Store) GetKVStore(key types.StoreKey) types.KVStore {
 		store = tracekv.NewStore(store, rs.traceWriter, rs.traceContext)
 	}
 	if rs.ListeningEnabled(key) {
-		store = tracekv.NewStore(store, rs.listeners[key].Writer, rs.listeners[key].Context)
+		store = listenkv.NewStore(store, rs.listeners[key])
 	}
 
 	return store
