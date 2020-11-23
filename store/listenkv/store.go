@@ -14,12 +14,12 @@ import (
 // underlying io.writer for listeners with the proper key permissions
 type Store struct {
 	parent    types.KVStore
-	listeners []types.Listener
+	listeners []types.Listening
 }
 
 // NewStore returns a reference to a new traceKVStore given a parent
 // KVStore implementation and a buffered writer.
-func NewStore(parent types.KVStore, listeners []types.Listener) *Store {
+func NewStore(parent types.KVStore, listeners []types.Listening) *Store {
 	return &Store{parent: parent, listeners: listeners}
 }
 
@@ -81,10 +81,10 @@ func (tkv *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 
 type traceIterator struct {
 	parent    types.Iterator
-	listeners []types.Listener
+	listeners []types.Listening
 }
 
-func newTraceIterator(parent types.Iterator, listeners []types.Listener) types.Iterator {
+func newTraceIterator(parent types.Iterator, listeners []types.Listening) types.Iterator {
 	return &traceIterator{parent: parent, listeners: listeners}
 }
 
@@ -149,13 +149,13 @@ func (tkv *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Ca
 
 // CacheWrapWithListeners implements the KVStore interface. It panics as a
 // Store cannot be cache wrapped.
-func (tkv *Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
+func (tkv *Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
 	panic("cannot CacheWrapWithListeners a Store")
 }
 
 // writeOperation writes a KVStore operation to the underlying io.Writer as
 // JSON-encoded data where the key/value pair is base64 encoded.
-func writeOperation(listeners []types.Listener, op types.Operation, key, value []byte) {
+func writeOperation(listeners []types.Listening, op types.Operation, key, value []byte) {
 	traceOp := types.TraceOperation{
 		Operation: op,
 		Key:       base64.StdEncoding.EncodeToString(key),
@@ -165,14 +165,14 @@ func writeOperation(listeners []types.Listener, op types.Operation, key, value [
 		if !l.Allowed(op, key) {
 			continue
 		}
-		traceOp.Metadata = l.Context
+		traceOp.Metadata = l.GetContext()
 		raw, err := json.Marshal(traceOp)
 		if err != nil {
 			panic(errors.Wrap(err, "failed to serialize listen operation"))
 		}
-		if _, err := l.Writer.Write(raw); err != nil {
+		if _, err := l.Write(raw); err != nil {
 			panic(errors.Wrap(err, "failed to write listen operation"))
 		}
-		io.WriteString(l.Writer, "\n")
+		io.WriteString(l, "\n")
 	}
 }

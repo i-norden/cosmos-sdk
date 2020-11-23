@@ -162,7 +162,7 @@ func (st *Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 }
 
 // CacheWrapWithListeners implements the Store interface.
-func (st *Store) CacheWrapWithListeners(listeners []types.Listener) types.CacheWrap {
+func (st *Store) CacheWrapWithListeners(listeners []types.Listening) types.CacheWrap {
 	return cachekv.NewStore(listenkv.NewStore(st, listeners))
 }
 

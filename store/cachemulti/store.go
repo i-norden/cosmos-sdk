@@ -26,7 +26,7 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
-	listeners      map[types.StoreKey][]types.Listener
+	listeners      map[types.StoreKey][]types.Listening
 	cacheListening bool
 }
 
@@ -38,7 +38,7 @@ var _ types.CacheMultiStore = Store{}
 func NewFromKVStore(
 	store types.KVStore, stores map[types.StoreKey]types.CacheWrapper,
 	keys map[string]types.StoreKey, traceWriter io.Writer, traceContext types.TraceContext,
-	listeners map[types.StoreKey][]types.Listener,
+	listeners map[types.StoreKey][]types.Listening,
 ) Store {
 	cms := Store{
 		db:           cachekv.NewStore(store),
@@ -70,7 +70,7 @@ func NewFromKVStore(
 // CacheWrapper objects. Each CacheWrapper store is a branched store.
 func NewStore(
 	db dbm.DB, stores map[types.StoreKey]types.CacheWrapper, keys map[string]types.StoreKey,
-	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.Listener,
+	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.Listening,
 ) Store {
 
 	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext, listeners)
@@ -81,7 +81,7 @@ func newCacheMultiStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
-	var cacheListeners map[types.StoreKey][]types.Listener
+	var cacheListeners map[types.StoreKey][]types.Listening
 	if cms.cacheListening {
 		cacheListeners = cms.listeners
 	}
@@ -118,7 +118,7 @@ func (cms Store) TracingEnabled() bool {
 }
 
 // SetListeners sets the listeners for a specific KVStore
-func (cms Store) SetListeners(key types.StoreKey, listeners []types.Listener) {
+func (cms Store) SetListeners(key types.StoreKey, listeners []types.Listening) {
 	if ls, ok := cms.listeners[key]; ok {
 		cms.listeners[key] = append(ls, listeners...)
 	} else {
@@ -163,7 +163,7 @@ func (cms Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 }
 
 // CacheWrapWithListeners implements the CacheWrapper interface.
-func (cms Store) CacheWrapWithListeners(_ []types.Listener) types.CacheWrap {
+func (cms Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
 	return cms.CacheWrap()
 }
 

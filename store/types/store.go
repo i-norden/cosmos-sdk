@@ -135,7 +135,7 @@ type MultiStore interface {
 	ListeningEnabled(key StoreKey) bool
 
 	// SetListeners sets the listener set for the KVStore belonging to the provided StoreKey
-	SetListeners(key StoreKey, listeners []Listener)
+	SetListeners(key StoreKey, listeners []Listening)
 
 	// CacheListening enables or disables KVStore listening at the cache layer
 	CacheListening(listen bool)
@@ -264,7 +264,7 @@ type CacheWrap interface {
 	CacheWrapWithTrace(w io.Writer, tc TraceContext) CacheWrap
 
 	// CacheWrapWithListeners recursively wraps again with listening enabled
-	CacheWrapWithListeners(listeners []Listener) CacheWrap
+	CacheWrapWithListeners(listeners []Listening) CacheWrap
 }
 
 type CacheWrapper interface {
@@ -275,7 +275,7 @@ type CacheWrapper interface {
 	CacheWrapWithTrace(w io.Writer, tc TraceContext) CacheWrap
 
 	// CacheWrapWithListeners recursively wraps again with listening enabled
-	CacheWrapWithListeners(listeners []Listener) CacheWrap
+	CacheWrapWithListeners(listeners []Listening) CacheWrap
 }
 
 func (cid CommitID) IsZero() bool {

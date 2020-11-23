@@ -60,7 +60,7 @@ func (s Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Cach
 }
 
 // CacheWrapWithListeners implements the KVStore interface.
-func (s Store) CacheWrapWithListeners(listeners []types.Listener) types.CacheWrap {
+func (s Store) CacheWrapWithListeners(listeners []types.Listening) types.CacheWrap {
 	return cachekv.NewStore(listenkv.NewStore(s, listeners))
 }
 

@@ -184,7 +184,7 @@ func (app *BaseApp) SetCommitMultiStoreTracer(w io.Writer) {
 }
 
 // SetCommitMultiStoreListeners sets the KVStore listeners for the provided StoreKey
-func (app *BaseApp) SetCommitMultiStoreListeners(key sdk.StoreKey, listeners []storeTypes.Listener) {
+func (app *BaseApp) SetCommitMultiStoreListeners(key sdk.StoreKey, listeners []storeTypes.Listening) {
 	app.cms.SetListeners(key, listeners)
 }
 

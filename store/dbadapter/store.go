@@ -88,7 +88,7 @@ func (dsa Store) CacheWrapWithTrace(w io.Writer, tc types.TraceContext) types.Ca
 }
 
 // CacheWrapWithListeners implements KVStore.
-func (dsa Store) CacheWrapWithListeners(listeners []types.Listener) types.CacheWrap {
+func (dsa Store) CacheWrapWithListeners(listeners []types.Listening) types.CacheWrap {
 	return cachekv.NewStore(listenkv.NewStore(dsa, listeners))
 }
 
