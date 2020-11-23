@@ -26,6 +26,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	simappparams "github.com/cosmos/cosmos-sdk/simapp/params"
+	storeTypes "github.com/cosmos/cosmos-sdk/store/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -220,6 +221,21 @@ func NewSimApp(
 	)
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
+
+	// configure state listening capabilities
+	if cast.ToBool(appOpts.Get("simApp.listening")) {
+		writeDir := filepath.Clean(cast.ToString(appOpts.Get("simApp.listening.writeDir")))
+		for _, key := range keys {
+			loadListener(bApp, writeDir, key)
+		}
+		for _, key := range tkeys {
+			loadListener(bApp, writeDir, key)
+		}
+		for _, key := range memKeys {
+			loadListener(bApp, writeDir, key)
+		}
+		bApp.SetCacheListening(cast.ToBool(appOpts.Get("simApp.listening.cache")))
+	}
 
 	app := &SimApp{
 		BaseApp:           bApp,
@@ -611,4 +627,17 @@ func initParamsKeeper(appCodec codec.BinaryMarshaler, legacyAmino *codec.LegacyA
 	paramsKeeper.Subspace(ibchost.ModuleName)
 
 	return paramsKeeper
+}
+
+// loadListener creates and adds to the BaseApp a listener that writes out to a file named
+// after the StoreKey in the provided write directory
+func loadListener(bApp *baseapp.BaseApp, writeDir string, key sdk.StoreKey) {
+	writePath := filepath.Join(writeDir, key.Name())
+	fileHandler, err := os.OpenFile(writePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0664)
+	if err != nil {
+		tmos.Exit(err.Error())
+	}
+	listener := storeTypes.NewDefaultStateListener(fileHandler, nil)
+	// using single listener with all permissions
+	bApp.SetCommitMultiStoreListeners(key, []storeTypes.Listening{listener})
 }

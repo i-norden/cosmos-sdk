@@ -153,9 +153,14 @@ func (tkv *Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
 	panic("cannot CacheWrapWithListeners a Store")
 }
 
-// writeOperation writes a KVStore operation to the underlying io.Writer as
-// JSON-encoded data where the key/value pair is base64 encoded.
+// writeOperation writes a KVStore operation to the underlying io.Writer of
+// every listener that has permissions to listen to that operation at the given key
+// The TraceOperation is JSON-encoded with the `key` and `value` fields as base64 encoded strings
 func writeOperation(listeners []types.Listening, op types.Operation, key, value []byte) {
+	// short circuit if there are no listeners so we don't waste time base64 encoding `key` and `value`
+	if len(listeners) == 0 {
+		return
+	}
 	traceOp := types.TraceOperation{
 		Operation: op,
 		Key:       base64.StdEncoding.EncodeToString(key),

@@ -131,12 +131,12 @@ func (l *Listener) Allowed(op Operation, key []byte) bool {
 	// if there are whitelisted keys or prefixes then only the keys which conform are allowed (unless disallowed in blacklists)
 	allowed := true
 	if len(l.whitelistedKeys) > 0 || len(l.whitelistedPrefixes) > 0 {
-		allowed = listsContains(l.whitelistedKeys, l.whitelistedPrefixes, key)
+		allowed = listsContain(l.whitelistedKeys, l.whitelistedPrefixes, key)
 	}
-	return allowed && !listsContains(l.blacklistedKeys, l.blacklistedPrefixes, key)
+	return allowed && !listsContain(l.blacklistedKeys, l.blacklistedPrefixes, key)
 }
 
-func listsContains(keys, prefixes [][]byte, key []byte) bool {
+func listsContain(keys, prefixes [][]byte, key []byte) bool {
 	for _, k := range keys {
 		if bytes.Equal(key, k) {
 			return true
