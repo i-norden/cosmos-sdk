@@ -184,13 +184,8 @@ func (app *BaseApp) SetCommitMultiStoreTracer(w io.Writer) {
 }
 
 // SetCommitMultiStoreListeners sets the KVStore listeners for the provided StoreKey
-func (app *BaseApp) SetCommitMultiStoreListeners(key sdk.StoreKey, listeners []storeTypes.Listening) {
+func (app *BaseApp) SetCommitMultiStoreListeners(key sdk.StoreKey, listeners []storeTypes.WriteListener) {
 	app.cms.SetListeners(key, listeners)
-}
-
-// SetCacheListening turns on or off listening at the cache layer
-func (app *BaseApp) SetCacheListening(listening bool) {
-	app.cms.CacheListening(listening)
 }
 
 // SetStoreLoader allows us to customize the rootMultiStore initialization.

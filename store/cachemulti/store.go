@@ -26,7 +26,7 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
-	listeners      map[types.StoreKey][]types.Listening
+	listeners      map[types.StoreKey][]types.WriteListener
 	cacheListening bool
 }
 
@@ -38,7 +38,7 @@ var _ types.CacheMultiStore = Store{}
 func NewFromKVStore(
 	store types.KVStore, stores map[types.StoreKey]types.CacheWrapper,
 	keys map[string]types.StoreKey, traceWriter io.Writer, traceContext types.TraceContext,
-	listeners map[types.StoreKey][]types.Listening,
+	listeners map[types.StoreKey][]types.WriteListener,
 ) Store {
 	cms := Store{
 		db:           cachekv.NewStore(store),
@@ -70,7 +70,7 @@ func NewFromKVStore(
 // CacheWrapper objects. Each CacheWrapper store is a branched store.
 func NewStore(
 	db dbm.DB, stores map[types.StoreKey]types.CacheWrapper, keys map[string]types.StoreKey,
-	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.Listening,
+	traceWriter io.Writer, traceContext types.TraceContext, listeners map[types.StoreKey][]types.WriteListener,
 ) Store {
 
 	return NewFromKVStore(dbadapter.Store{DB: db}, stores, keys, traceWriter, traceContext, listeners)
@@ -81,12 +81,8 @@ func newCacheMultiStoreFromCMS(cms Store) Store {
 	for k, v := range cms.stores {
 		stores[k] = v
 	}
-	var cacheListeners map[types.StoreKey][]types.Listening
-	if cms.cacheListening {
-		cacheListeners = cms.listeners
-	}
 
-	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext, cacheListeners)
+	return NewFromKVStore(cms.db, stores, nil, cms.traceWriter, cms.traceContext, cms.listeners)
 }
 
 // SetTracer sets the tracer for the MultiStore that the underlying
@@ -118,7 +114,7 @@ func (cms Store) TracingEnabled() bool {
 }
 
 // SetListeners sets the listeners for a specific KVStore
-func (cms Store) SetListeners(key types.StoreKey, listeners []types.Listening) {
+func (cms Store) SetListeners(key types.StoreKey, listeners []types.WriteListener) {
 	if ls, ok := cms.listeners[key]; ok {
 		cms.listeners[key] = append(ls, listeners...)
 	} else {
@@ -132,11 +128,6 @@ func (cms Store) ListeningEnabled(key types.StoreKey) bool {
 		return len(ls) != 0
 	}
 	return false
-}
-
-// CacheListening turns on or off listening at the cache layer
-func (cms Store) CacheListening(listen bool) {
-	cms.cacheListening = listen
 }
 
 // GetStoreType returns the type of the store.
@@ -163,7 +154,7 @@ func (cms Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 }
 
 // CacheWrapWithListeners implements the CacheWrapper interface.
-func (cms Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
+func (cms Store) CacheWrapWithListeners(_ []types.WriteListener) types.CacheWrap {
 	return cms.CacheWrap()
 }
 

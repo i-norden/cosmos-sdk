@@ -14,12 +14,12 @@ import (
 // underlying io.writer for listeners with the proper key permissions
 type Store struct {
 	parent    types.KVStore
-	listeners []types.Listening
+	listeners []types.WriteListener
 }
 
 // NewStore returns a reference to a new traceKVStore given a parent
 // KVStore implementation and a buffered writer.
-func NewStore(parent types.KVStore, listeners []types.Listening) *Store {
+func NewStore(parent types.KVStore, listeners []types.WriteListener) *Store {
 	return &Store{parent: parent, listeners: listeners}
 }
 
@@ -27,8 +27,6 @@ func NewStore(parent types.KVStore, listeners []types.Listening) *Store {
 // delegates a Get call to the parent KVStore.
 func (tkv *Store) Get(key []byte) []byte {
 	value := tkv.parent.Get(key)
-
-	writeOperation(tkv.listeners, types.ReadOp, key, value)
 	return value
 }
 
@@ -36,14 +34,14 @@ func (tkv *Store) Get(key []byte) []byte {
 // delegates the Set call to the parent KVStore.
 func (tkv *Store) Set(key []byte, value []byte) {
 	types.AssertValidKey(key)
-	writeOperation(tkv.listeners, types.WriteOp, key, value)
+	onWrite(tkv.listeners, key, value)
 	tkv.parent.Set(key, value)
 }
 
 // Delete implements the KVStore interface. It traces a write operation and
 // delegates the Delete call to the parent KVStore.
 func (tkv *Store) Delete(key []byte) {
-	writeOperation(tkv.listeners, types.DeleteOp, key, nil)
+	onWrite(tkv.listeners, key, nil)
 	tkv.parent.Delete(key)
 }
 
@@ -81,10 +79,10 @@ func (tkv *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 
 type traceIterator struct {
 	parent    types.Iterator
-	listeners []types.Listening
+	listeners []types.WriteListener
 }
 
-func newTraceIterator(parent types.Iterator, listeners []types.Listening) types.Iterator {
+func newTraceIterator(parent types.Iterator, listeners []types.WriteListener) types.Iterator {
 	return &traceIterator{parent: parent, listeners: listeners}
 }
 
@@ -106,16 +104,12 @@ func (ti *traceIterator) Next() {
 // Key implements the Iterator interface.
 func (ti *traceIterator) Key() []byte {
 	key := ti.parent.Key()
-
-	writeOperation(ti.listeners, types.IterKeyOp, key, nil)
 	return key
 }
 
 // Value implements the Iterator interface.
 func (ti *traceIterator) Value() []byte {
 	value := ti.parent.Value()
-
-	writeOperation(ti.listeners, types.IterValueOp, nil, value)
 	return value
 }
 
@@ -149,35 +143,13 @@ func (tkv *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Ca
 
 // CacheWrapWithListeners implements the KVStore interface. It panics as a
 // Store cannot be cache wrapped.
-func (tkv *Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
+func (tkv *Store) CacheWrapWithListeners(_ []types.WriteListener) types.CacheWrap {
 	panic("cannot CacheWrapWithListeners a Store")
 }
 
-// writeOperation writes a KVStore operation to the underlying io.Writer of
-// every listener that has permissions to listen to that operation at the given key
-// The TraceOperation is JSON-encoded with the `key` and `value` fields as base64 encoded strings
-func writeOperation(listeners []types.Listening, op types.Operation, key, value []byte) {
-	// short circuit if there are no listeners so we don't waste time base64 encoding `key` and `value`
-	if len(listeners) == 0 {
-		return
-	}
-	traceOp := types.TraceOperation{
-		Operation: op,
-		Key:       base64.StdEncoding.EncodeToString(key),
-		Value:     base64.StdEncoding.EncodeToString(value),
-	}
+// onWrite writes a KVStore key value update to the underlying io.Writer of
+func onWrite(listeners []types.WriteListener, key, value []byte) {
 	for _, l := range listeners {
-		if !l.Allowed(op, key) {
-			continue
-		}
-		traceOp.Metadata = l.GetContext()
-		raw, err := json.Marshal(traceOp)
-		if err != nil {
-			panic(errors.Wrap(err, "failed to serialize listen operation"))
-		}
-		if _, err := l.Write(raw); err != nil {
-			panic(errors.Wrap(err, "failed to write listen operation"))
-		}
-		io.WriteString(l, "\n")
+		l.OnWrite(key, value)
 	}
 }

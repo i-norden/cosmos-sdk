@@ -222,19 +222,21 @@ func NewSimApp(
 	tkeys := sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 	memKeys := sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
 
-	// configure state listening capabilities
-	if cast.ToBool(appOpts.Get("simApp.listening")) {
-		writeDir := filepath.Clean(cast.ToString(appOpts.Get("simApp.listening.writeDir")))
-		for _, key := range keys {
-			loadListener(bApp, writeDir, key)
+	// collect keys we want to listen to
+	storeKeys := make([]storeTypes.StoreKey, 0, len(keys))
+	for _, key := range keys {
+		storeKeys = append(storeKeys, key)
+	}
+	// configure state listening capabilities using AppOptions
+	listeners := cast.ToStringSlice(appOpts.Get("store.listeners"))
+	for _, listenerName := range listeners {
+		constructor, err := baseapp.NewStreamingServiceConstructor(listenerName)
+		if err != nil {
+			tmos.Exit(err.Error()) // or continue?
 		}
-		for _, key := range tkeys {
-			loadListener(bApp, writeDir, key)
+		if err := constructor(bApp, appOpts, storeKeys); err != nil {
+			tmos.Exit(err.Error())
 		}
-		for _, key := range memKeys {
-			loadListener(bApp, writeDir, key)
-		}
-		bApp.SetCacheListening(cast.ToBool(appOpts.Get("simApp.listening.cache")))
 	}
 
 	app := &SimApp{
@@ -627,17 +629,4 @@ func initParamsKeeper(appCodec codec.BinaryMarshaler, legacyAmino *codec.LegacyA
 	paramsKeeper.Subspace(ibchost.ModuleName)
 
 	return paramsKeeper
-}
-
-// loadListener creates and adds to the BaseApp a listener that writes out to a file named
-// after the StoreKey in the provided write directory
-func loadListener(bApp *baseapp.BaseApp, writeDir string, key sdk.StoreKey) {
-	writePath := filepath.Join(writeDir, key.Name())
-	fileHandler, err := os.OpenFile(writePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0664)
-	if err != nil {
-		tmos.Exit(err.Error())
-	}
-	listener := storeTypes.NewDefaultStateListener(fileHandler, nil)
-	// using single listener with all permissions
-	bApp.SetCommitMultiStoreListeners(key, []storeTypes.Listening{listener})
 }

@@ -59,7 +59,7 @@ type Store struct {
 	traceWriter  io.Writer
 	traceContext types.TraceContext
 
-	listeners      map[types.StoreKey][]types.Listening
+	listeners      map[types.StoreKey][]types.WriteListener
 	cacheListening bool
 
 	interBlockCache types.MultiStorePersistentCache
@@ -82,7 +82,7 @@ func NewStore(db dbm.DB) *Store {
 		stores:       make(map[types.StoreKey]types.CommitKVStore),
 		keysByName:   make(map[string]types.StoreKey),
 		pruneHeights: make([]int64, 0),
-		listeners:    make(map[types.StoreKey][]types.Listening),
+		listeners:    make(map[types.StoreKey][]types.WriteListener),
 	}
 }
 
@@ -319,7 +319,7 @@ func (rs *Store) TracingEnabled() bool {
 }
 
 // SetListener sets the listeners for a specific KVStore
-func (rs *Store) SetListeners(key types.StoreKey, listeners []types.Listening) {
+func (rs *Store) SetListeners(key types.StoreKey, listeners []types.WriteListener) {
 	if ls, ok := rs.listeners[key]; ok {
 		rs.listeners[key] = append(ls, listeners...)
 	} else {
@@ -334,12 +334,6 @@ func (rs *Store) ListeningEnabled(key types.StoreKey) bool {
 	}
 	return false
 }
-
-// CacheListening enables or disables KVStore listening at the cache layer
-func (rs *Store) CacheListening(listen bool) {
-	rs.cacheListening = listen
-}
-
 // LastCommitID implements Committer/CommitStore.
 func (rs *Store) LastCommitID() types.CommitID {
 	if rs.lastCommitInfo == nil {
@@ -433,7 +427,7 @@ func (rs *Store) CacheWrapWithTrace(_ io.Writer, _ types.TraceContext) types.Cac
 }
 
 // CacheWrapWithListeners implements the CacheWrapper interface.
-func (rs *Store) CacheWrapWithListeners(_ []types.Listening) types.CacheWrap {
+func (rs *Store) CacheWrapWithListeners(_ []types.WriteListener) types.CacheWrap {
 	return rs.CacheWrap()
 }
 
@@ -444,11 +438,7 @@ func (rs *Store) CacheMultiStore() types.CacheMultiStore {
 	for k, v := range rs.stores {
 		stores[k] = v
 	}
-	var cacheListeners map[types.StoreKey][]types.Listening
-	if rs.cacheListening {
-		cacheListeners = rs.listeners
-	}
-	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext, cacheListeners)
+	return cachemulti.NewStore(rs.db, stores, rs.keysByName, rs.traceWriter, rs.traceContext, rs.listeners)
 }
 
 // CacheMultiStoreWithVersion is analogous to CacheMultiStore except that it
@@ -477,7 +467,7 @@ func (rs *Store) CacheMultiStoreWithVersion(version int64) (types.CacheMultiStor
 			cachedStores[key] = store
 		}
 	}
-	var cacheListeners map[types.StoreKey][]types.Listening
+	var cacheListeners map[types.StoreKey][]types.WriteListener
 	if rs.cacheListening {
 		cacheListeners = rs.listeners
 	}

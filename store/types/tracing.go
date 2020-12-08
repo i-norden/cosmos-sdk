@@ -1,9 +1,5 @@
 package types
 
-import (
-	"io"
-)
-
 // Operation represents an IO operation
 type Operation string
 
@@ -30,11 +26,4 @@ type TraceOperation struct {
 	Key       string                 `json:"key"`
 	Value     string                 `json:"value"`
 	Metadata  map[string]interface{} `json:"metadata"`
-}
-
-// Listening interface for listening to KVStore state changes
-type Listening interface {
-	io.Writer
-	Allowed(op Operation, key []byte) bool
-	GetContext() TraceContext
 }
