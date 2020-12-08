@@ -1,0 +1,43 @@
+syntax = "proto3";
+package cosmos.schema.v1beta1;
+
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/schema/types";
+
+message KeyDescriptor {
+  string name = 1;
+  string description = 2;
+  string store = 4;
+  bytes prefix = 5;
+  google.protobuf.Any value_proto_type = 6;
+  google.protobuf.Any value_go_type = 7;
+  repeated Part parts = 8;
+
+  message Part {
+    oneof sum {
+      Bytes bytes = 1;
+      String string = 2;
+      Separator separator = 3;
+    }
+
+    message Bytes {
+      string name = 1;
+      string description = 2;
+      uint32 fixed_width = 3;
+      google.protobuf.Any go_type = 4;
+      repeated string relations = 5;
+    }
+
+    message String {
+      string name = 1;
+      string description = 2;
+      google.protobuf.Any go_type = 3;
+      repeated string relations = 4;
+    }
+
+    message Separator {
+      string separator = 1;
+    }
+  }
+}
