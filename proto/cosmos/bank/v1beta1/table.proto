@@ -1,0 +1,47 @@
+syntax = "proto3";
+package cosmos.bank.v1beta1;
+
+import "gogoproto/gogo.proto";
+import "cosmos_proto/cosmos.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "cosmos/bank/v1beta1/bank.proto";
+
+option go_package = "github.com/cosmos/cosmos-sdk/x/bank/types";
+
+
+// BalanceTable defines a table associating addresses with balances of specific denominations
+message BalanceTable {
+  // address is the address to query balances for.
+  string address = 1;
+
+  // denom is the coin denom to query balances for.
+  string denom = 2;
+
+  // balance is the balance of the coin.
+  cosmos.base.v1beta1.Coin balance = 3;
+}
+
+// SupplyTable defines a table associating denom with its supply.
+// use `message Coin`
+message SupplyTable {
+  // denom is the coin denom to query balances for.
+  string denom = 1;
+  // amount is the supply of the coin.
+  string amount = 2;
+}
+
+// DenomMetadataTable defiens a table that associates denom with its metadata
+message DenomMetadataTable {
+  // denom is the coin denom to query the metadata for.
+  string denom = 1;
+  // metadata contains all of the metadata fields
+  cosmos.bank.v1beta1.Metadata metadata = 2;
+}
+
+// DenomEnabledTable table keeps track of whether or not sending of a denom is enabled
+message DenomEnabledTable {
+  // denom is the coin denom to query the metadata for.
+  string denom = 1;
+  // enabled indicates whether or not sending this coin denom is enabled
+  bool enabled = 2;
+}

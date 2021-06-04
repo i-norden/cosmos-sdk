@@ -105,6 +105,12 @@
   
     - [Query](#cosmos.bank.v1beta1.Query)
   
+- [cosmos/bank/v1beta1/table.proto](#cosmos/bank/v1beta1/table.proto)
+    - [BalanceTable](#cosmos.bank.v1beta1.BalanceTable)
+    - [DenomEnabledTable](#cosmos.bank.v1beta1.DenomEnabledTable)
+    - [DenomMetadataTable](#cosmos.bank.v1beta1.DenomMetadataTable)
+    - [SupplyTable](#cosmos.bank.v1beta1.SupplyTable)
+  
 - [cosmos/bank/v1beta1/tx.proto](#cosmos/bank/v1beta1/tx.proto)
     - [MsgMultiSend](#cosmos.bank.v1beta1.MsgMultiSend)
     - [MsgMultiSendResponse](#cosmos.bank.v1beta1.MsgMultiSendResponse)
@@ -1920,6 +1926,88 @@ Query defines the gRPC querier service.
 | `Params` | [QueryParamsRequest](#cosmos.bank.v1beta1.QueryParamsRequest) | [QueryParamsResponse](#cosmos.bank.v1beta1.QueryParamsResponse) | Params queries the parameters of x/bank module. | GET|/cosmos/bank/v1beta1/params|
 | `DenomMetadata` | [QueryDenomMetadataRequest](#cosmos.bank.v1beta1.QueryDenomMetadataRequest) | [QueryDenomMetadataResponse](#cosmos.bank.v1beta1.QueryDenomMetadataResponse) | DenomsMetadata queries the client metadata of a given coin denomination. | GET|/cosmos/bank/v1beta1/denoms_metadata/{denom}|
 | `DenomsMetadata` | [QueryDenomsMetadataRequest](#cosmos.bank.v1beta1.QueryDenomsMetadataRequest) | [QueryDenomsMetadataResponse](#cosmos.bank.v1beta1.QueryDenomsMetadataResponse) | DenomsMetadata queries the client metadata for all registered coin denominations. | GET|/cosmos/bank/v1beta1/denoms_metadata|
+
+ <!-- end services -->
+
+
+
+<a name="cosmos/bank/v1beta1/table.proto"></a>
+<p align="right"><a href="#top">Top</a></p>
+
+## cosmos/bank/v1beta1/table.proto
+
+
+
+<a name="cosmos.bank.v1beta1.BalanceTable"></a>
+
+### BalanceTable
+BalanceTable defines a table associating addresses with balances of specific denominations
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `address` | [string](#string) |  | address is the address to query balances for. |
+| `denom` | [string](#string) |  | denom is the coin denom to query balances for. |
+| `balance` | [cosmos.base.v1beta1.Coin](#cosmos.base.v1beta1.Coin) |  | balance is the balance of the coin. |
+
+
+
+
+
+
+<a name="cosmos.bank.v1beta1.DenomEnabledTable"></a>
+
+### DenomEnabledTable
+DenomEnabledTable table keeps track of whether or not sending of a denom is enabled
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `denom` | [string](#string) |  | denom is the coin denom to query the metadata for. |
+| `enabled` | [bool](#bool) |  | enabled indicates whether or not sending this coin denom is enabled |
+
+
+
+
+
+
+<a name="cosmos.bank.v1beta1.DenomMetadataTable"></a>
+
+### DenomMetadataTable
+DenomMetadataTable defiens a table that associates denom with its metadata
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `denom` | [string](#string) |  | denom is the coin denom to query the metadata for. |
+| `metadata` | [Metadata](#cosmos.bank.v1beta1.Metadata) |  | metadata contains all of the metadata fields |
+
+
+
+
+
+
+<a name="cosmos.bank.v1beta1.SupplyTable"></a>
+
+### SupplyTable
+SupplyTable defines a table associating denom with its supply.
+use `message Coin`
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| `denom` | [string](#string) |  | denom is the coin denom to query balances for. |
+| `amount` | [string](#string) |  | amount is the supply of the coin. |
+
+
+
+
+
+ <!-- end messages -->
+
+ <!-- end enums -->
+
+ <!-- end HasExtensions -->
 
  <!-- end services -->
 
